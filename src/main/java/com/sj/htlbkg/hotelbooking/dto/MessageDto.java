@@ -12,6 +12,7 @@ import java.io.Serializable;
 @ToString
 @Builder
 public class MessageDto implements Serializable {
+
     private String code;
     private String message;
 
