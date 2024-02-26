@@ -13,6 +13,7 @@ import java.util.List;
 @ToString
 @Builder
 public class ResponseMsgDto implements Serializable {
+
     private String exception;
     private List<MessageDto> messages;
 

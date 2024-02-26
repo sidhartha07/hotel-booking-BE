@@ -30,7 +30,7 @@ public class SecurityConfig {
                 // Permit access to Swagger UI and API documentation endpoints
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-resources/**").permitAll()
                 // Allow registration and login endpoints without authentication
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login").permitAll()
+                .requestMatchers("/api/v1/**").permitAll()
                 // Require authentication for all other endpoints
                 .anyRequest().authenticated()
                 .and()

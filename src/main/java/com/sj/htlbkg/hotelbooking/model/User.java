@@ -19,7 +19,7 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 @Entity
-@Table(name = "tbl_user")
+@Table(name = "t_user")
 public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -42,9 +42,9 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
     private Role role;
-    @Column(name = "created_datetime")
+    @Column(name = "cr_dtm")
     private LocalDateTime createdDateTime;
-    @Column(name = "updated_datetime")
+    @Column(name = "upd_dtm")
     private LocalDateTime updatedDateTime;
 
     @Override

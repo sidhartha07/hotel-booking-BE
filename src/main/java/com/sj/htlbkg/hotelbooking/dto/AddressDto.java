@@ -11,7 +11,10 @@ import java.io.Serializable;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class AuthRequest implements Serializable {
-    private String email;
-    private String password;
+public class AddressDto implements Serializable {
+    private String city;
+    private String pincode;
+    private String state;
+    private String streetNo;
+    private String landMark;
 }
