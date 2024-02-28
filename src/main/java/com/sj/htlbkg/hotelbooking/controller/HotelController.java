@@ -1,11 +1,14 @@
 package com.sj.htlbkg.hotelbooking.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sj.htlbkg.hotelbooking.dto.HotelDto;
 import com.sj.htlbkg.hotelbooking.dto.HotelRequest;
 import com.sj.htlbkg.hotelbooking.dto.MessageDto;
 import com.sj.htlbkg.hotelbooking.dto.ResponseMsgDto;
 import com.sj.htlbkg.hotelbooking.exception.InvalidRequestException;
 import com.sj.htlbkg.hotelbooking.service.HotelService;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ObjectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,18 +19,26 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/v1/hotel")
 public class HotelController {
     private final Logger logger = LoggerFactory.getLogger(HotelController.class);
     @Autowired
-    private HotelService hotelService;
+    private final HotelService hotelService;
+    @Autowired
+    private final ObjectMapper objectMapper;
 
     @PostMapping("/create")
-    public ResponseEntity<Object> createHotel(@RequestBody HotelRequest request) {
+    public ResponseEntity<Object> createHotel(
+            @RequestPart(value = "hotel") String hotel,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images) throws IOException {
+        HotelRequest request = objectMapper.readValue(hotel, HotelRequest.class);
         if (validateRequest(request)) {
             MessageDto messageDto = MessageDto.builder()
                     .code("100003")
@@ -39,7 +50,7 @@ public class HotelController {
                     .build();
             throw new InvalidRequestException(HttpStatus.BAD_REQUEST, responseMsgDto);
         }
-        hotelService.saveHotel(request);
+        hotelService.saveHotel(request, images);
         MessageDto response = MessageDto.builder()
                 .code(HttpStatus.CREATED.toString())
                 .message("Hotel creation success")
@@ -156,5 +167,18 @@ public class HotelController {
         return ResponseEntity.status(ex.getStatus().value())
                 .header("produces", MediaType.APPLICATION_JSON_VALUE)
                 .body(responseMsgDto);
+    }
+
+    @ExceptionHandler(value = {JsonProcessingException.class})
+    @ResponseBody
+    public ResponseEntity<Object> handleJsonProcessingExp(JsonProcessingException ex) {
+        logger.warn("Hotel creation failed: - Error: {}", ex.getMessage());
+        MessageDto messageDto = MessageDto.builder()
+                .code(HttpStatus.INTERNAL_SERVER_ERROR.toString())
+                .message("Unable to process the request")
+                .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .header("produces", MediaType.APPLICATION_JSON_VALUE)
+                .body(messageDto);
     }
 }

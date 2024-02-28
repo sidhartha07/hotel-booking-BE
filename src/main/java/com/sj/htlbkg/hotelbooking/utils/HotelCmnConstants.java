@@ -16,7 +16,8 @@ public class HotelCmnConstants {
     public static final String STATE = "state";
     public static final String LANDMARK = "landmark";
     public static final String STREET_NO = "streetNo";
-
+    public static final String IMAGE_URL = "imgUrl";
+    public static final String IMAGE_ID = "imgUrl";
 
     private HotelCmnConstants() {
 
