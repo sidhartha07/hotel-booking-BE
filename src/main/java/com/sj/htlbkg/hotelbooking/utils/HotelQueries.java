@@ -9,6 +9,14 @@ public class HotelQueries {
             INSERT INTO t_addrs (addrs_id, htl_id, cty, pin, ste, str_no, lnd_mrk, cr_dtm, upd_dtm)
             VALUES (:addressId,:hotelId,:city,:pincode,:state,:streetNo,:landmark,:created,:updated);
             """;
+    public static final String INSERT_HOTEL_IMAGE = """
+            INSERT INTO t_htl_imgs (img_id, htl_id, img_url, cr_dtm, upd_dtm)
+            VALUES (gen_random_uuid(),:hotelId,:imgUrl,:created,:updated);
+            """;
+    public static final String FIND_IMAGES_BY_HOTEL_ID = """
+            SELECT img_url
+            FROM t_htl_imgs WHERE htl_id = :hotelId;
+            """;
     public static final String FIND_HOTEL_BY_ID = """
             SELECT htl_id, htl_nm, addrs, htl_dsc, htl_typ, fclts, rtng
             FROM t_htl WHERE htl_id = :hotelId;
@@ -37,6 +45,10 @@ public class HotelQueries {
             """;
     public static final String DELETE_ADDRESS = """
             DELETE FROM t_htl
+            WHERE htl_id=:hotelId;
+            """;
+    public static final String DELETE_IMAGES = """
+            DELETE FROM t_htl_imgs
             WHERE htl_id=:hotelId;
             """;
 }
