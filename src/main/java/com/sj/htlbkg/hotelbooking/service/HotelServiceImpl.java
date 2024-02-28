@@ -5,27 +5,53 @@ import com.sj.htlbkg.hotelbooking.dto.HotelDto;
 import com.sj.htlbkg.hotelbooking.dto.HotelRequest;
 import com.sj.htlbkg.hotelbooking.model.Address;
 import com.sj.htlbkg.hotelbooking.model.Hotel;
+import com.sj.htlbkg.hotelbooking.model.HotelImage;
 import com.sj.htlbkg.hotelbooking.repository.HotelRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class HotelServiceImpl implements HotelService {
+    private static final Logger logger = LoggerFactory.getLogger(HotelServiceImpl.class);
     @Autowired
     private HotelRepository hotelRepository;
+    @Autowired
+    private CloudinaryService cloudinaryService;
 
     @Override
     @Transactional
-    public void saveHotel(HotelRequest request) {
+    public void saveHotel(HotelRequest request, List<MultipartFile> images) throws IOException {
         Address address = mapToAddrsEntity(request);
         String facilities = String.join(",", request.getFacilities());
         Hotel hotel = mapToHotelEntity(request, facilities);
-        hotelRepository.create(hotel, address);
+        List<String> imgUrls = new ArrayList<>();
+        if (!CollectionUtils.isEmpty(images)) {
+            imgUrls = saveImagesToCloudinary(images);
+        }
+        hotelRepository.create(hotel, address, imgUrls);
+    }
+
+    private List<String> saveImagesToCloudinary(List<MultipartFile> images) {
+        List<String> imgUrls = new ArrayList<>();
+        for(MultipartFile img : images) {
+            String imgUrl = cloudinaryService.uploadImage(img, "htl_imgs");
+            if(!StringUtils.hasText(imgUrl)) {
+                throw new RuntimeException();
+            }
+            imgUrls.add(imgUrl);
+        }
+        return imgUrls;
     }
 
     @Override
@@ -39,7 +65,16 @@ public class HotelServiceImpl implements HotelService {
         if (hotel == null) {
             throw new RuntimeException();
         }
-        return mapToHotelDto(hotel, addressDto);
+        List<HotelImage> imgs = hotelRepository.findImagesByHotelId(hotelId);
+        List<String> imgUrls = new ArrayList<>();
+        if (!CollectionUtils.isEmpty(imgs)) {
+            for (HotelImage img : imgs) {
+                imgUrls.add(img.getImageUrl());
+            }
+        }
+        HotelDto hotelDto = mapToHotelDto(hotel, addressDto);
+        hotelDto.setImageUrls(imgUrls);
+        return hotelDto;
     }
 
     @Override
@@ -51,6 +86,8 @@ public class HotelServiceImpl implements HotelService {
                 Address address = hotelRepository.findAddressById(hotel.getHotelId());
                 AddressDto addressDto = mapToAddrsDto(address);
                 HotelDto hotelDto = mapToHotelDto(hotel, addressDto);
+                List<String> imgUrls = hotelRepository.findImagesByHotelId(hotel.getHotelId()).stream().map(HotelImage::getImageUrl).toList();
+                hotelDto.setImageUrls(imgUrls);
                 hotelDtos.add(hotelDto);
             }
         } else {
@@ -79,9 +116,15 @@ public class HotelServiceImpl implements HotelService {
     }
 
     @Override
+    @Transactional
     public void deleteHotel(String hotelId) {
+        List<HotelImage> imgs = hotelRepository.findImagesByHotelId(hotelId);
         int dltcnt = hotelRepository.delete(hotelId);
-        if(dltcnt != 2) {
+        List<String> publicIds = imgs.stream().map(img -> img.getImageUrl().substring(53)).toList();
+        for (String publicId : publicIds) {
+            cloudinaryService.deleteImage(publicId);
+        }
+        if (dltcnt != 2 + publicIds.size()) {
             throw new RuntimeException();
         }
     }

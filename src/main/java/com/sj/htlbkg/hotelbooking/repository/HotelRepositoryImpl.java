@@ -1,9 +1,11 @@
 package com.sj.htlbkg.hotelbooking.repository;
 
 import com.sj.htlbkg.hotelbooking.mapper.AddressRowMapper;
+import com.sj.htlbkg.hotelbooking.mapper.HotelImageRowMapper;
 import com.sj.htlbkg.hotelbooking.mapper.HotelRowMapper;
 import com.sj.htlbkg.hotelbooking.model.Address;
 import com.sj.htlbkg.hotelbooking.model.Hotel;
+import com.sj.htlbkg.hotelbooking.model.HotelImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,10 +15,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import static com.sj.htlbkg.hotelbooking.utils.HotelCmnConstants.*;
 import static com.sj.htlbkg.hotelbooking.utils.HotelQueries.*;
@@ -29,7 +28,7 @@ public class HotelRepositoryImpl implements HotelRepository {
     private NamedParameterJdbcTemplate jdbcTemplate;
 
     @Override
-    public void create(Hotel hotel, Address address) {
+    public void create(Hotel hotel, Address address, List<String> images) {
         String addressId = UUID.randomUUID().toString();
         String hotelId = UUID.randomUUID().toString();
         hotel.setHotelId(hotelId);
@@ -40,8 +39,16 @@ public class HotelRepositoryImpl implements HotelRepository {
         MapSqlParameterSource hotelSqlParameterSource = getHotelSqlParameterSource(hotel);
         int htlinscnt = jdbcTemplate.update(INSERT_HOTEL, hotelSqlParameterSource);
         int addrinscnt = jdbcTemplate.update(INSERT_ADDRESS, addressSqlParameterSource);
+        int[] htlimginscnt = {0};
+        if(!CollectionUtils.isEmpty(images)) {
+            List<MapSqlParameterSource> batch = images.stream()
+                    .map(imgUrl -> getHtlImgMapSqlParameterSource(hotelId, imgUrl))
+                    .toList();
+            htlimginscnt = jdbcTemplate.batchUpdate(INSERT_HOTEL_IMAGE, batch.toArray(new MapSqlParameterSource[0]));
+        }
         logger.info("insert to t_htl completed with {} count", htlinscnt);
         logger.info("insert to t_addrs for htl_id {} completed with {} count", hotelId, addrinscnt);
+        logger.info("insert to t_htl_imgs for htl_id {} completed with {} count", hotelId, Arrays.stream(htlimginscnt).sum());
     }
 
     @Override
@@ -85,9 +92,29 @@ public class HotelRepositoryImpl implements HotelRepository {
         map.addValue(HOTEL_ID, hotelId);
         int addrdltcnt = jdbcTemplate.update(DELETE_ADDRESS, map);
         int htldltcnt = jdbcTemplate.update(DELETE_HOTEL, map);
+        int imgsdltcnt = jdbcTemplate.update(DELETE_IMAGES, map);
         logger.info("deletion to t_addrs completed with {} count", addrdltcnt);
         logger.info("deletion to t_htl completed with {} count", htldltcnt);
-        return addrdltcnt + htldltcnt;
+        logger.info("deletion to t_htl_imgs completed with {} count", imgsdltcnt);
+        return addrdltcnt + htldltcnt + imgsdltcnt;
+    }
+
+    @Override
+    public List<HotelImage> findImagesByHotelId(String hotelId) {
+        MapSqlParameterSource map = new MapSqlParameterSource();
+        map.addValue(HOTEL_ID, hotelId);
+        List<HotelImage> imgUrls = jdbcTemplate.query(FIND_IMAGES_BY_HOTEL_ID, map, new HotelImageRowMapper());
+        logger.info("images fetched for hotel_id : {}", hotelId);
+        return !CollectionUtils.isEmpty(imgUrls) ? imgUrls : null;
+    }
+
+    private MapSqlParameterSource getHtlImgMapSqlParameterSource(String htlId, String imgUrl) {
+        MapSqlParameterSource map = new MapSqlParameterSource();
+        map.addValue(HOTEL_ID, htlId);
+        map.addValue(IMAGE_URL, imgUrl);
+        map.addValue(CREATED, LocalDateTime.now());
+        map.addValue(UPDATED, LocalDateTime.now());
+        return map;
     }
 
     private MapSqlParameterSource getAddressSqlParameterSource(Address address) {

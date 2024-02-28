@@ -21,4 +21,5 @@ public class HotelDto implements Serializable {
     private String type;
     private List<String> facilities;
     private Double rating;
+    private List<String> imageUrls;
 }
